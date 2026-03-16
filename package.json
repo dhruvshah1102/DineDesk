@@ -6,7 +6,11 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+     "db:push": "dotenv -e .env.local -- prisma db push",
+  "db:generate": "dotenv -e .env.local -- prisma generate",
+  "db:seed": "dotenv -e .env.local -- prisma db seed",
+  "db:studio": "dotenv -e .env.local -- prisma studio"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",
@@ -42,6 +46,7 @@
     "@types/qrcode": "^1.5.6",
     "@types/react": "^18",
     "@types/react-dom": "^18",
+    "dotenv-cli": "^11.0.0",
     "eslint": "^8",
     "eslint-config-next": "14.2.35",
     "postcss": "^8",
@@ -51,6 +56,6 @@
     "typescript": "^5"
   },
   "prisma": {
-    "seed": "ts-node --compiler-options {\"module\":\"CommonJS\"} prisma/seed.ts"
-  }
+  "seed": "ts-node --compiler-options {\"module\":\"CommonJS\"} prisma/seed.ts"
+}
 }
