@@ -1,0 +1,142 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// ── One row per registered cafe ───────────────────────────────────
+model Tenant {
+  id             String      @id @default(uuid())
+  name           String                           // 'The Brew House'
+  slug           String      @unique              // 'brew-house' — used in subdomain
+  email          String      @unique              // owner login email
+  passwordHash   String                           // bcrypt hashed
+  phone          String?
+  address        String?
+  logoUrl        String?                          // Supabase Storage URL
+  primaryColor   String      @default("#C8853A")  // hex — for branding
+  numTables      Int         @default(4)
+  isActive       Boolean     @default(true)
+  plan           String      @default("trial")    // trial | basic | pro
+  planExpiresAt  DateTime?
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+  categories     Category[]
+  menuItems      MenuItem[]
+  tables         CafeTable[]
+  orders         Order[]
+  payments       Payment[]
+}
+
+// ── Menu sections (Coffee, Food, Drinks...) ────────────────────────
+model Category {
+  id         String     @id @default(uuid())
+  tenantId   String
+  tenant     Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  name       String
+  sortOrder  Int        @default(0)
+  createdAt  DateTime   @default(now())
+  menuItems  MenuItem[]
+  @@index([tenantId])
+}
+
+// ── Individual menu items ──────────────────────────────────────────
+model MenuItem {
+  id           String      @id @default(uuid())
+  tenantId     String
+  tenant       Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  categoryId   String
+  category     Category    @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  name         String
+  description  String?
+  price        Decimal     @db.Decimal(10,2)
+  imageUrl     String?
+  isAvailable  Boolean     @default(true)
+  isVeg        Boolean     @default(true)
+  sortOrder    Int         @default(0)
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+  orderItems   OrderItem[]
+  @@index([tenantId])
+  @@index([categoryId])
+}
+
+// ── Physical tables in the cafe (Table 1, Table 2...) ──────────────
+model CafeTable {
+  id           String   @id @default(uuid())
+  tenantId     String
+  tenant       Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tableNumber  Int
+  label        String?                       // optional: 'Window Seat'
+  qrCodeUrl    String?                       // Supabase Storage URL of QR PNG
+  isActive     Boolean  @default(true)
+  orders       Order[]
+  @@unique([tenantId, tableNumber])          // table 3 can exist at many cafes
+}
+
+// ── Customer orders ────────────────────────────────────────────────
+model Order {
+  id             String      @id @default(uuid())
+  tenantId       String
+  tenant         Tenant      @relation(fields: [tenantId], references: [id])
+  tableId        String
+  table          CafeTable   @relation(fields: [tableId], references: [id])
+  tableNumber    Int                          // denormalised for fast display
+  status         String      @default("new")  // new|confirmed|preparing|ready|served|cancelled
+  paymentStatus  String      @default("pending") // pending|paid|failed|refunded
+  subtotal       Decimal     @db.Decimal(10,2)
+  taxAmount      Decimal     @default(0) @db.Decimal(10,2)
+  totalAmount    Decimal     @db.Decimal(10,2)
+  customerName   String?
+  notes          String?
+  placedAt       DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+  orderItems     OrderItem[]
+  payment        Payment?
+  @@index([tenantId])
+  @@index([tenantId, status])
+  @@index([tenantId, placedAt(sort: Desc)])
+}
+
+// ── Line items inside each order ───────────────────────────────────
+model OrderItem {
+  id          String   @id @default(uuid())
+  orderId     String
+  order       Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  menuItemId  String
+  menuItem    MenuItem @relation(fields: [menuItemId], references: [id])
+  name        String                       // SNAPSHOT: item name at order time
+  price       Decimal  @db.Decimal(10,2)   // SNAPSHOT: price at order time
+  quantity    Int      @default(1)
+  lineTotal   Decimal  @db.Decimal(10,2)   // price * quantity
+}
+
+// ── Payment transaction records ────────────────────────────────────
+model Payment {
+  id                String    @id @default(uuid())
+  orderId           String    @unique
+  order             Order     @relation(fields: [orderId], references: [id])
+  tenantId          String
+  tenant            Tenant    @relation(fields: [tenantId], references: [id])
+  gateway           String    @default("razorpay")
+  gatewayOrderId    String?   // ID from Razorpay
+  gatewayPaymentId  String?   // Payment confirmation ID from Razorpay
+  amount            Decimal   @db.Decimal(10,2)
+  currency          String    @default("INR")
+  status            String    @default("pending")
+  paidAt            DateTime?
+  createdAt         DateTime  @default(now())
+}
+
+// ── Platform owner admin accounts ─────────────────────────────────
+model PlatformAdmin {
+  id            String   @id @default(uuid())
+  email         String   @unique
+  passwordHash  String
+  role          String   @default("admin")   // admin | super_admin
+  createdAt     DateTime @default(now())
+}
