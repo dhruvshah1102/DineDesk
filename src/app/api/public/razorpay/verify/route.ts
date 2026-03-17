@@ -19,21 +19,37 @@ export async function POST(req: Request) {
     const order = await prisma.order.findUnique({ where: { id: internal_order_id } });
     if (!order) return NextResponse.json({ error: 'Order not found' }, { status: 404 });
 
-    // Payment is authentic, update the order
-    await prisma.order.update({
-       where: { id: internal_order_id },
-       data: { 
+    // Payment is authentic, update all pending orders for this table session
+    const ordersToSettle = await prisma.order.findMany({
+      where: {
+        tenantId: order.tenantId,
+        tableId: order.tableId,
+        paymentStatus: 'pending'
+      }
+    });
+
+    for (const ord of ordersToSettle) {
+      await prisma.order.update({
+        where: { id: ord.id },
+        data: { 
           paymentStatus: 'paid',
           payment: {
-             create: {
-                tenantId: order.tenantId,
-                amount: order.totalAmount,
-                gateway: 'razorpay',
-                gatewayPaymentId: razorpay_payment_id,
-                status: 'success'
-             }
+            create: {
+              tenantId: ord.tenantId,
+              amount: ord.totalAmount,
+              gateway: 'razorpay',
+              gatewayPaymentId: razorpay_payment_id, // Mark all as part of same gateway session
+              status: 'success'
+            }
           }
-       }
+        }
+      });
+    }
+
+    // Mark table as available again once bill is settled
+    await prisma.cafeTable.update({
+      where: { id: order.tableId },
+      data: { isOccupied: false }
     });
 
     return NextResponse.json({ success: true });

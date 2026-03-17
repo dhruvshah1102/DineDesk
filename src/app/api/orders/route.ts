@@ -107,6 +107,12 @@ export async function POST(req: Request) {
       }
     });
 
+    // Mark table as occupied
+    await prisma.cafeTable.update({
+      where: { id: tableId },
+      data: { isOccupied: true }
+    });
+
     return NextResponse.json({ orderId: order.id });
 
   } catch (err) {

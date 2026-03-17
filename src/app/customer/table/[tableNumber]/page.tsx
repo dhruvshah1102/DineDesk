@@ -57,16 +57,25 @@ export default async function CustomerTablePage({ params, searchParams }: { para
   })).filter((g: any) => g.items.length > 0); // Don't show empty categories
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-500">
-      <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex justify-between items-center relative overflow-hidden">
-         <div className="absolute top-0 left-0 w-1.5 h-full bg-[var(--customer-brand)]"></div>
-         <div className="pl-2">
-            <h1 className="text-xl font-bold text-gray-900">Welcome to {tenant.name}</h1>
-            <p className="text-sm text-gray-500">You are browsing the digital menu.</p>
-         </div>
-         <div className="text-center rounded-lg bg-gray-50 px-4 py-2 border border-gray-100">
-            <span className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest">Table</span>
-            <span className="block text-2xl font-black text-[var(--customer-brand)]">{table.tableNumber}</span>
+    <div className="space-y-12 animate-in fade-in slide-in-from-bottom-5 duration-700">
+      <div className="bg-slate-900 px-8 py-10 rounded-[48px] shadow-2xl shadow-slate-900/10 relative overflow-hidden group">
+         {/* Decorative Gradients */}
+         <div className="absolute top-0 right-0 w-64 h-64 bg-[var(--customer-brand)] opacity-20 rounded-full blur-3xl -mr-32 -mt-32 transition-transform duration-1000 group-hover:scale-110"></div>
+         <div className="absolute bottom-0 left-0 w-32 h-32 bg-indigo-500 opacity-10 rounded-full blur-3xl -ml-16 -mb-16"></div>
+         
+         <div className="relative z-10 flex flex-col items-center text-center space-y-4">
+            <div className="w-16 h-16 bg-white/10 rounded-3xl flex items-center justify-center border border-white/10 backdrop-blur-sm self-center">
+               <span className="text-3xl font-black text-[var(--customer-brand)] italic">T{table.tableNumber}</span>
+            </div>
+            <div className="space-y-1">
+               <h1 className="text-3xl font-black text-white italic tracking-tighter uppercase">{tenant.name}</h1>
+               <p className="text-xs font-black text-slate-400 uppercase tracking-[0.3em]">Digital Concierge Active</p>
+            </div>
+            
+            <div className="flex items-center space-x-2 bg-emerald-500/10 px-3 py-1.5 rounded-full border border-emerald-500/20 mt-2">
+               <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse"></div>
+               <span className="text-[10px] font-black text-emerald-400 uppercase tracking-widest">Order Securely from this unit</span>
+            </div>
          </div>
       </div>
 

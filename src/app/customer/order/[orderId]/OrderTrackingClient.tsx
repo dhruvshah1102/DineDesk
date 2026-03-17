@@ -2,7 +2,18 @@
 
 import { useState, useEffect } from 'react';
 import { createBrowserSupabaseClient } from '@/lib/supabase-browser';
-import { CheckCircle, Clock, Utensils, Coffee } from 'lucide-react';
+import { 
+  CheckCircle2, 
+  Clock, 
+  Utensils, 
+  Coffee, 
+  PackageCheck, 
+  MapPin, 
+  CreditCard,
+  ChefHat,
+  Sparkles,
+  Zap
+} from 'lucide-react';
 import toast from 'react-hot-toast';
 
 interface OrderTrackingClientProps {
@@ -15,7 +26,6 @@ export default function OrderTrackingClient({ initialOrder, tenantId }: OrderTra
   const supabase = createBrowserSupabaseClient();
 
   useEffect(() => {
-    // 1. Attempt Supabase Realtime (Works if Table is 'Enable Realtime' in Dashboard)
     const channel = supabase
       .channel('order-track-' + order.id)
       .on('postgres_changes', {
@@ -31,7 +41,6 @@ export default function OrderTrackingClient({ initialOrder, tenantId }: OrderTra
       })
       .subscribe();
 
-    // 2. Fallback Long-Polling (Fires every 5s if websockets fail/disabled)
     const pollInterval = setInterval(async () => {
       try {
         const res = await fetch(`/api/orders/${order.id}`);
@@ -46,9 +55,9 @@ export default function OrderTrackingClient({ initialOrder, tenantId }: OrderTra
 
     const handleStatusChange = (newStatus: string) => {
        setOrder((prev: any) => ({ ...prev, status: newStatus }));
-       if (newStatus === 'preparing') toast.success('Chef started preparing your order!');
-       if (newStatus === 'ready') toast.success('Your food is ready & on the way!');
-       if (newStatus === 'served') toast.success('Enjoy your meal!');
+       if (newStatus === 'preparing') toast.success('Chef started preparing your order!', { icon: '👨‍🍳' });
+       if (newStatus === 'ready') toast.success('Order is ready & on the way!', { icon: '🚀' });
+       if (newStatus === 'served') toast.success('Enjoy your meal!', { icon: '🍽️' });
     };
 
     return () => {
@@ -58,73 +67,133 @@ export default function OrderTrackingClient({ initialOrder, tenantId }: OrderTra
   }, [order.id, order.status, supabase]);
 
   const steps = [
-    { id: 'new', label: 'Order Placed', icon: Clock },
-    { id: 'preparing', label: 'Preparing', icon: Utensils },
-    { id: 'ready', label: 'Ready to Serve', icon: Coffee },
-    { id: 'served', label: 'Served', icon: CheckCircle },
+    { id: 'new', label: 'Order Confirmed', icon: PackageCheck, desc: 'Your ticket has been prioritized by our kitchen queue.' },
+    { id: 'preparing', label: 'Culinary Preparation', icon: ChefHat, desc: 'Our chefs are currently hand-crafting your assets.' },
+    { id: 'ready', label: 'Quality Verified', icon: Coffee, desc: 'Your assets are ready for distribution to your unit.' },
+    { id: 'served', label: 'Mission Complete', icon: CheckCircle2, desc: 'Assets have been deployed successfully to your table.' },
   ];
 
-  const currentStepIndex = steps.findIndex(s => s.id === order.status);
+  const currentStepIndex = Math.max(0, steps.findIndex(s => s.id === order.status));
+  const CurrentStepIcon = steps[currentStepIndex]?.icon;
 
   return (
-    <div className="space-y-6">
-       <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-          <div className="relative flex justify-between w-full px-2">
-             {/* Progress Line */}
-             <div className="absolute top-5 left-8 right-8 h-1 bg-gray-100 -z-10 rounded-full"></div>
-             <div 
-               className="absolute top-5 left-8 h-1 bg-[var(--customer-brand)] -z-10 rounded-full transition-all duration-500 ease-in-out"
-               style={{ width: `calc(${(Math.max(0, currentStepIndex) / 3) * 100}% - 4rem)` }}
-             ></div>
+    <div className="space-y-10 animate-in fade-in slide-in-from-bottom-5 duration-700 pb-20">
+       {/* Status Card */}
+       <div className="bg-slate-900 rounded-[48px] p-10 text-white relative shadow-2xl shadow-slate-900/30 overflow-hidden">
+          <div className="absolute top-0 right-0 w-64 h-64 bg-brand opacity-10 rounded-full blur-3xl -mr-32 -mt-32"></div>
+          
+          <div className="relative z-10 flex flex-col items-center text-center space-y-6">
+             <div className="w-20 h-20 bg-white/10 rounded-full flex items-center justify-center border border-white/5 backdrop-blur-md relative">
+                <div className="absolute inset-0 rounded-full bg-brand/30 animate-ping opacity-20"></div>
+                <div className="w-14 h-14 bg-brand rounded-full flex items-center justify-center shadow-lg shadow-brand/20">
+                   {CurrentStepIcon && <CurrentStepIcon size={28} className="text-white" />}
+                </div>
+             </div>
+             
+             <div className="space-y-2">
+                <div className="flex items-center justify-center space-x-2 text-brand font-black text-[10px] uppercase tracking-[0.3em]">
+                   <Zap size={10} fill="currentColor" />
+                   <span>Live Tracking Protocol</span>
+                </div>
+                <h1 className="text-3xl font-black italic tracking-tighter uppercase">{steps[currentStepIndex]?.label}</h1>
+                <p className="text-slate-400 font-medium text-sm max-w-xs">{steps[currentStepIndex]?.desc}</p>
+             </div>
+          </div>
+       </div>
 
+       {/* Vertical Timeline */}
+       <div className="bg-white rounded-[40px] border border-slate-100 p-8 shadow-sm space-y-10">
+          <div className="space-y-8 relative">
+             <div className="absolute left-6 top-6 bottom-6 w-0.5 bg-slate-50"></div>
+             
              {steps.map((step, idx) => {
                const Icon = step.icon;
                const isActive = idx <= currentStepIndex;
                const isCurrent = idx === currentStepIndex;
                
                return (
-                 <div key={step.id} className="flex flex-col items-center z-10 w-16">
-                    <div className={`h-10 w-10 flex items-center justify-center rounded-full transition-colors duration-300 border-2 ${isActive ? 'bg-[var(--customer-brand)] text-white border-[var(--customer-brand)] shadow-md' : 'bg-gray-100 text-gray-400 border-white'}`}>
-                       <Icon size={18} />
+                 <div key={step.id} className="relative flex items-center space-x-6 z-10">
+                    <div className={`w-12 h-12 rounded-2xl flex items-center justify-center border-[3px] transition-all duration-500 shadow-sm ${
+                      isCurrent ? 'bg-brand border-brand text-white shadow-brand/20 scale-110' : 
+                      isActive ? 'bg-slate-900 border-slate-900 text-white' : 
+                      'bg-white border-slate-50 text-slate-200'
+                    }`}>
+                       <Icon size={20} />
                     </div>
-                    <span className={`text-[10px] mt-2 text-center uppercase tracking-tight leading-tight ${isCurrent ? 'text-gray-900 font-bold' : isActive ? 'text-gray-600 font-medium' : 'text-gray-400 font-medium'}`}>
-                       {step.label}
-                    </span>
+                    <div className="flex flex-col">
+                       <span className={`text-xs font-black uppercase tracking-widest ${isActive ? (isCurrent ? 'text-brand' : 'text-slate-900') : 'text-slate-300'}`}>
+                          {step.label}
+                       </span>
+                       {isCurrent && (
+                         <div className="flex items-center space-x-1.5 mt-1">
+                            <div className="w-1 h-1 rounded-full bg-slate-400 animate-pulse"></div>
+                            <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Ongoing Task</span>
+                         </div>
+                       )}
+                    </div>
                  </div>
                );
              })}
           </div>
        </div>
 
-       <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden divide-y divide-gray-100">
-          <div className="p-4 bg-gray-50 border-b border-gray-100 flex justify-between items-center">
-             <h3 className="font-semibold text-gray-800">Order Items</h3>
-             <span className="text-xs font-bold px-2 py-1 bg-gray-200 rounded text-gray-600 uppercase">
-               {order.paymentStatus === 'paid' ? 'Paid' : 'Unpaid'}
-             </span>
-          </div>
-
-          <div className="divide-y divide-gray-100 relative">
-             {/* Disable items interaction overlay since it's paid/placed */}
-             <div className="absolute inset-0 z-10 pointer-events-none"></div> 
-
-             {order.orderItems.map((item: any) => (
-                <div key={item.id} className="p-4 flex items-center justify-between opacity-90">
-                   <div className="flex-1 pr-4">
-                      <div className="flex items-center space-x-2">
-                         <h3 className="font-bold text-gray-900 text-sm">{item.quantity}x {item.name}</h3>
-                      </div>
-                   </div>
-                   <div className="flex items-center space-x-4">
-                      <p className="font-bold text-gray-600 text-sm">₹{Number(item.lineTotal).toFixed(2)}</p>
-                   </div>
+       {/* Order Summary */}
+       <div className="bg-white rounded-[40px] border border-slate-100 overflow-hidden shadow-sm">
+          <div className="p-8 border-b border-slate-50 flex items-center justify-between">
+             <div className="flex items-center space-x-3">
+                <div className="w-10 h-10 rounded-2xl bg-slate-50 flex items-center justify-center text-slate-400 border border-slate-100">
+                   <PackageCheck size={18} />
                 </div>
-             ))}
+                <div>
+                   <h3 className="text-lg font-black text-slate-900 italic uppercase leading-none mt-1">Order Details</h3>
+                   <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest block mt-1">Reference: {order.id.slice(-8).toUpperCase()}</span>
+                </div>
+             </div>
+             <div className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center space-x-2 border transition-colors ${
+               order.paymentStatus === 'paid' ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-amber-50 text-amber-600 border-amber-100'
+             }`}>
+                <CreditCard size={12} />
+                <span>{order.paymentStatus === 'paid' ? 'Paid In Full' : 'Pending Clearance'}</span>
+             </div>
           </div>
 
-          <div className="p-4 bg-gray-50 flex justify-between text-lg font-black text-gray-900 border-t border-gray-100">
-             <span>Total</span>
-             <span>₹{order.totalAmount.toFixed(2)}</span>
+          <div className="p-8 space-y-6">
+             <div className="space-y-4">
+                {order.orderItems.map((item: any) => (
+                   <div key={item.id} className="flex items-center justify-between group">
+                      <div className="flex items-center space-x-4">
+                         <div className="w-8 h-8 rounded-lg bg-slate-50 flex items-center justify-center text-[10px] font-black text-slate-400 border border-slate-100">
+                            {item.quantity}
+                         </div>
+                         <span className="text-sm font-black text-slate-900 uppercase italic tracking-tight group-hover:text-brand transition-colors">{item.name}</span>
+                      </div>
+                      <span className="text-xs font-black text-slate-400 tracking-tighter">₹{Number(item.lineTotal).toFixed(0)}</span>
+                   </div>
+                ))}
+             </div>
+             
+             <div className="pt-8 border-t border-slate-50 flex justify-between items-end">
+                <div className="space-y-1">
+                   <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest">Settled Amount</p>
+                   <h4 className="text-3xl font-black italic tracking-tighter text-slate-900">₹{order.totalAmount.toFixed(0)}</h4>
+                </div>
+                <div className="flex items-center space-x-2 text-emerald-500 bg-emerald-50 px-3 py-1.5 rounded-xl border border-emerald-100">
+                   <Sparkles size={14} />
+                   <span className="text-[9px] font-black tracking-widest uppercase">Verified Transact</span>
+                </div>
+             </div>
+          </div>
+       </div>
+
+       {/* Support / Help */}
+       <div className="flex flex-col items-center space-y-4 text-center px-8">
+          <p className="text-[10px] font-black text-slate-300 uppercase tracking-[0.2em] leading-relaxed">
+             If you require specific adjustments to your order, please consult our spatial staff members immediately.
+          </p>
+          <div className="h-px w-20 bg-slate-100"></div>
+          <div className="flex items-center space-x-2 text-[9px] font-black text-slate-400 uppercase tracking-[0.2em]">
+             <MapPin size={12} className="text-brand" />
+             <span>HUB-01-TABLE-{order.tableNumber || '??'}</span>
           </div>
        </div>
     </div>

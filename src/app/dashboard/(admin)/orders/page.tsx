@@ -3,6 +3,7 @@ import { verifyToken } from '@/lib/auth';
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import KanbanBoard from '@/components/dashboard/KanbanBoard';
+import { Activity } from 'lucide-react';
 
 export default async function OrdersPage() {
   const token = cookies().get('menuflow_token')?.value;
@@ -13,7 +14,6 @@ export default async function OrdersPage() {
 
   const tenantId = payload.tenantId as string;
 
-  // Fetch initial orders for today that are not deeply archived
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
@@ -21,7 +21,6 @@ export default async function OrdersPage() {
     where: { 
       tenantId, 
       status: { in: ['new', 'preparing', 'ready'] },
-      paymentStatus: 'paid',
       placedAt: { gte: today }
     },
     include: {
@@ -30,7 +29,6 @@ export default async function OrdersPage() {
     orderBy: { placedAt: 'asc' }
   });
 
-  // Convert dates to string for serialization across Server to Client boundary
   const serializedOrders = orders.map(o => ({
     ...o,
     placedAt: o.placedAt.toISOString(),
@@ -46,13 +44,26 @@ export default async function OrdersPage() {
   }));
 
   return (
-    <div className="h-full flex flex-col space-y-4">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight text-gray-900">Live Orders</h1>
-        <p className="text-gray-500 mt-1">Manage current operations across all tables in real-time.</p>
+    <div className="h-full flex flex-col space-y-8 max-w-[1600px] mx-auto">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+           <div className="flex items-center space-x-2 text-brand font-bold text-xs uppercase tracking-[0.2em] mb-2">
+              <Activity size={14} />
+              <span>Real-time Operations</span>
+           </div>
+           <h1 className="text-4xl font-black tracking-tight text-slate-900">Live Orders</h1>
+           <p className="text-slate-500 mt-2 font-medium">Manage current orders and kitchen operations in real-time.</p>
+        </div>
+        
+        <div className="flex items-center space-x-3 bg-white p-2 rounded-2xl border border-slate-100 shadow-sm">
+           <div className="px-4 py-2 bg-emerald-50 rounded-xl flex items-center space-x-2">
+              <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>
+              <span className="text-xs font-bold text-emerald-700 uppercase tracking-wider">Live Sync</span>
+           </div>
+        </div>
       </div>
       
-      <div className="flex-1 overflow-hidden">
+      <div className="flex-1 min-h-0">
          <KanbanBoard initialOrders={serializedOrders} tenantId={tenantId} />
       </div>
     </div>

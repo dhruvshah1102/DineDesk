@@ -19,6 +19,7 @@ interface CartContextType {
   updateQuantity: (id: string, delta: number) => void;
   removeItem: (id: string) => void;
   clearCart: () => void;
+  clearTableSession: () => void;
   subtotal: number;
   itemCount: number;
 }
@@ -74,11 +75,18 @@ export function CartProvider({ children }: { children: ReactNode }) {
     setItems([]);
   };
 
+  const clearTableSession = () => {
+    setItems([]);
+    setTableNumber(null);
+    localStorage.removeItem('menuflow_cart');
+    localStorage.removeItem('menuflow_table');
+  };
+
   const subtotal = items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
   const itemCount = items.reduce((sum, item) => sum + item.quantity, 0);
 
   return (
-    <CartContext.Provider value={{ items, addItem, updateQuantity, removeItem, clearCart, subtotal, itemCount, tableNumber, setTableNumber }}>
+    <CartContext.Provider value={{ items, addItem, updateQuantity, removeItem, clearCart, clearTableSession, subtotal, itemCount, tableNumber, setTableNumber }}>
       {children}
     </CartContext.Provider>
   );

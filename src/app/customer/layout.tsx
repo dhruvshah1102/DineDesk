@@ -3,6 +3,7 @@ import { CartProvider } from '@/components/customer/CartContext';
 import { headers } from 'next/headers';
 import { prisma } from '@/lib/prisma';
 import CustomerHeader from '@/components/customer/CustomerHeader';
+import CustomerBottomNav from '@/components/customer/CustomerBottomNav';
 
 export default async function CustomerLayout({ children }: { children: ReactNode }) {
   const headerList = headers();
@@ -25,9 +26,10 @@ export default async function CustomerLayout({ children }: { children: ReactNode
          style={{ '--customer-brand': brandColor } as React.CSSProperties}
       >
         <CustomerHeader slug={slug} cafeName={name} />
-        <main className="flex-1 pb-24 md:pb-8 max-w-2xl w-full mx-auto p-4">
+        <main className="flex-1 pb-32 md:pb-12 max-w-2xl w-full mx-auto p-4 relative">
           {children}
         </main>
+        <CustomerBottomNav slug={slug} />
       </div>
     </CartProvider>
   );

@@ -74,6 +74,7 @@ model CafeTable {
   label        String?                       // optional: 'Window Seat'
   qrCodeUrl    String?                       // Supabase Storage URL of QR PNG
   isActive     Boolean  @default(true)
+  isOccupied   Boolean  @default(false)      // New: tracks if customers are currently at the table
   orders       Order[]
   @@unique([tenantId, tableNumber])          // table 3 can exist at many cafes
 }

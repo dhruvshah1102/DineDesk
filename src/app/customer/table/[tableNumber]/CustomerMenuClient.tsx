@@ -1,8 +1,8 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useCart } from '@/components/customer/CartContext';
-import { Plus, Minus, Image as ImageIcon } from 'lucide-react';
+import { Plus, Minus, Search, Leaf, Flame, Sparkles, ChevronRight } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 interface MenuItem {
@@ -30,19 +30,17 @@ export default function CustomerMenuClient({
   slug: string 
 }) {
   const { items: cartItems, addItem, updateQuantity, setTableNumber, tableNumber: storedTableStr } = useCart();
+  const [activeCategory, setActiveCategory] = useState(groupedMenu[0]?.id || '');
   const initialized = useRef(false);
 
   useEffect(() => {
-    // Lock cart to physical table securely natively avoiding cross table ghost submissions if tabs crossed.
     if (!initialized.current) {
        if (storedTableStr && storedTableStr !== tableNumber) {
-          toast('You changed tables. Creating a new ticket.', { icon: '🔄' });
+          toast('Locked to Table ' + tableNumber, { icon: '📍' });
           setTableNumber(tableNumber);
-          // In a real app we might want to automatically clearCart here, but let's let context just override table.
        } else if (!storedTableStr) {
           setTableNumber(tableNumber);
        }
-       // Also optionally lock slug if needed.
        initialized.current = true;
     }
   }, [tableNumber, setTableNumber, storedTableStr]);
@@ -55,83 +53,151 @@ export default function CustomerMenuClient({
     const existingQ = getItemQuantity(item.id);
     if (existingQ === 0) {
       addItem({ menuItemId: item.id, name: item.name, price: item.price, quantity: 1, isVeg: item.isVeg });
-      toast.success(`Added ${item.name} to cart`);
+      toast.success(`${item.name} added`, {
+        style: { borderRadius: '12px', background: '#0F172A', color: '#fff', fontSize: '12px', fontWeight: 'bold' },
+        icon: <Sparkles size={16} className="text-yellow-400" />
+      });
     } else {
-      // Find the specific cart item ID logically associated since we aggregate by menuItemId visually
       const cartItem = cartItems.find(i => i.menuItemId === item.id);
-      if (cartItem) {
-        updateQuantity(cartItem.id, 1);
-      }
+      if (cartItem) updateQuantity(cartItem.id, 1);
     }
   };
 
   const handleRemove = (item: MenuItem) => {
     const cartItem = cartItems.find(i => i.menuItemId === item.id);
-    if (cartItem) {
-      updateQuantity(cartItem.id, -1);
+    if (cartItem) updateQuantity(cartItem.id, -1);
+  };
+
+  const scrollToCategory = (id: string) => {
+    const el = document.getElementById(id);
+    if (el) {
+       const offset = 140; // Adjust for sticky header + category bar
+       const bodyRect = document.body.getBoundingClientRect().top;
+       const elementRect = el.getBoundingClientRect().top;
+       const elementPosition = elementRect - bodyRect;
+       const offsetPosition = elementPosition - offset;
+
+       window.scrollTo({
+         top: offsetPosition,
+         behavior: 'smooth'
+       });
+       setActiveCategory(id);
     }
   };
 
   return (
-    <div className="space-y-10">
-       {groupedMenu.map((category) => (
-          <div key={category.id} className="scroll-mt-20">
-             <h2 className="text-xl font-bold text-gray-900 mb-4 sticky top-14 bg-gray-50/95 backdrop-blur-sm p-2 -mx-2 z-10 border-b border-gray-200">
-               {category.name}
-             </h2>
-             
-             <div className="space-y-4">
-                {category.items.map(item => {
-                   const quantity = getItemQuantity(item.id);
-                   const isVegColor = item.isVeg ? 'text-green-600 border-green-600' : 'text-red-600 border-red-600';
-                   const isVegBg = item.isVeg ? 'bg-green-600' : 'bg-red-600';
-
-                   return (
-                     <div key={item.id} className="bg-white rounded-xl shadow-sm border border-gray-100 p-3 flex gap-4 transition-transform hover:-translate-y-0.5">
-                        
-                        <div className="flex-1">
-                           <div className="flex items-center space-x-2 mb-1">
-                              <div className={`h-3 w-3 rounded-sm border-[1px] flex items-center justify-center p-[2px] ${isVegColor}`}>
-                                 <div className={`h-full w-full rounded-full ${isVegBg}`}></div>
-                              </div>
-                              <h3 className="font-bold text-gray-900 leading-tight">{item.name}</h3>
-                           </div>
-                           <p className="font-semibold text-gray-800 text-sm mb-2">₹{item.price.toFixed(2)}</p>
-                           {item.description && (
-                             <p className="text-xs text-gray-500 line-clamp-2 leading-relaxed">{item.description}</p>
-                           )}
-                        </div>
-
-                        <div className="w-24 flex flex-col items-center justify-between flex-shrink-0 relative">
-                           <div className="w-full aspect-square bg-gray-50 rounded-lg overflow-hidden border border-gray-100 shadow-inner flex items-center justify-center mb-2">
-                             {item.imageUrl ? (
-                               <img src={item.imageUrl} alt={item.name} className="w-full h-full object-cover" />
-                             ) : (
-                               <ImageIcon size={24} className="text-gray-300" />
-                             )}
-                           </div>
-                           
-                           {quantity > 0 ? (
-                             <div className="flex items-center justify-between w-full bg-[var(--customer-brand)] text-white rounded-md h-8 text-sm shadow-sm absolute -bottom-2 border-2 border-white">
-                                <button onClick={() => handleRemove(item)} className="h-full w-1/3 flex items-center justify-center hover:bg-black/20 rounded-l-md transition-colors"><Minus size={14}/></button>
-                                <span className="font-bold">{quantity}</span>
-                                <button onClick={() => handleAdd(item)} className="h-full w-1/3 flex items-center justify-center hover:bg-black/20 rounded-r-md transition-colors"><Plus size={14}/></button>
-                             </div>
-                           ) : (
-                             <button 
-                               onClick={() => handleAdd(item)} 
-                               className="w-full absolute -bottom-2 bg-white text-[var(--customer-brand)] font-bold text-sm h-8 rounded-md shadow-sm border border-gray-200 hover:border-[var(--customer-brand)] transition-colors uppercase tracking-wider text-[10px]"
-                             >
-                               ADD
-                             </button>
-                           )}
-                        </div>
-                     </div>
-                   );
-                })}
-             </div>
+    <div className="pb-20">
+       {/* Category Navigation Bar */}
+       <div className="sticky top-16 z-40 bg-white/80 backdrop-blur-md border-b border-slate-100 -mx-4 px-4 overflow-x-auto no-scrollbar py-3">
+          <div className="flex space-x-2">
+             {groupedMenu.map((cat) => (
+                <button
+                  key={cat.id}
+                  onClick={() => scrollToCategory(cat.id)}
+                  className={`px-5 py-2 rounded-full text-xs font-black uppercase tracking-widest whitespace-nowrap transition-all ${
+                    activeCategory === cat.id 
+                    ? 'bg-[var(--customer-brand)] text-white shadow-lg shadow-[var(--customer-brand)]/20 scale-105' 
+                    : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
+                  }`}
+                >
+                   {cat.name}
+                </button>
+             ))}
           </div>
-       ))}
+       </div>
+
+       {/* Menu Sections */}
+       <div className="mt-8 space-y-12">
+          {groupedMenu.map((category) => (
+             <div key={category.id} id={category.id} className="scroll-mt-32">
+                <div className="flex items-center space-x-3 mb-6">
+                   <div className="w-1 h-6 bg-[var(--customer-brand)] rounded-full"></div>
+                   <h2 className="text-xl font-black text-slate-900 tracking-tight italic uppercase">{category.name}</h2>
+                   <div className="flex-1 border-b border-slate-100"></div>
+                </div>
+                
+                <div className="grid gap-6">
+                   {category.items.map(item => {
+                      const quantity = getItemQuantity(item.id);
+                      return (
+                        <div key={item.id} className="group bg-white rounded-[32px] border border-slate-100 p-5 shadow-sm hover:shadow-xl transition-all duration-300 flex items-start gap-4">
+                           
+                           <div className="flex-1 space-y-2">
+                              <div className="flex items-center space-x-2">
+                                 <div className={`p-1 rounded-md border ${item.isVeg ? 'border-emerald-200 bg-emerald-50' : 'border-rose-200 bg-rose-50'}`}>
+                                    <div className={`w-2 h-2 rounded-full ${item.isVeg ? 'bg-emerald-500' : 'bg-rose-500'}`}></div>
+                                 </div>
+                                 <h3 className="font-black text-slate-900 leading-tight tracking-tight text-lg italic">{item.name}</h3>
+                              </div>
+                              
+                              <p className="text-sm font-black text-brand tracking-widest leading-none">₹{item.price.toFixed(0)}</p>
+                              
+                              {item.description && (
+                                <p className="text-xs text-slate-400 font-medium leading-relaxed line-clamp-2">{item.description}</p>
+                              )}
+
+                              <div className="flex items-center space-x-3 pt-2">
+                                 {item.isVeg ? (
+                                    <div className="flex items-center space-x-1 text-[10px] font-black uppercase text-emerald-600 tracking-widest">
+                                       <Leaf size={10} />
+                                       <span>Plant Based</span>
+                                    </div>
+                                 ) : (
+                                    <div className="flex items-center space-x-1 text-[10px] font-black uppercase text-rose-600 tracking-widest">
+                                       <Flame size={10} />
+                                       <span>Protein Rich</span>
+                                    </div>
+                                 )}
+                              </div>
+                           </div>
+
+                           <div className="w-28 flex-shrink-0 relative mt-1">
+                              <div className="w-full aspect-square rounded-3xl overflow-hidden bg-slate-50 border border-slate-100 shadow-inner group-hover:scale-105 transition-transform duration-300">
+                                 {item.imageUrl ? (
+                                   <img src={item.imageUrl} alt={item.name} className="w-full h-full object-cover" />
+                                 ) : (
+                                   <div className="w-full h-full flex items-center justify-center text-slate-200">
+                                      <Sparkles size={24} />
+                                   </div>
+                                 )}
+                              </div>
+                              
+                              {/* Add / Quantity Button */}
+                              <div className="absolute -bottom-3 inset-x-2">
+                                 {quantity > 0 ? (
+                                   <div className="flex items-center justify-between bg-slate-900 text-white rounded-2xl h-10 px-1 shadow-xl shadow-slate-900/20 border-2 border-white">
+                                      <button 
+                                        onClick={() => handleRemove(item)} 
+                                        className="h-8 w-8 flex items-center justify-center hover:bg-white/10 rounded-xl transition-colors"
+                                      >
+                                         <Minus size={14}/>
+                                      </button>
+                                      <span className="font-black text-sm">{quantity}</span>
+                                      <button 
+                                        onClick={() => handleAdd(item)} 
+                                        className="h-8 w-8 flex items-center justify-center hover:bg-white/10 rounded-xl transition-colors"
+                                      >
+                                         <Plus size={14}/>
+                                      </button>
+                                   </div>
+                                 ) : (
+                                   <button 
+                                     onClick={() => handleAdd(item)} 
+                                     className="w-full bg-white text-slate-900 border border-slate-200 rounded-2xl h-10 font-black text-[10px] uppercase tracking-[0.2em] shadow-lg hover:border-[var(--customer-brand)] hover:text-[var(--customer-brand)] transition-all active:scale-95 flex items-center justify-center space-x-1"
+                                   >
+                                      <span>ADD</span>
+                                      <Plus size={12} strokeWidth={3} />
+                                   </button>
+                                 )}
+                              </div>
+                           </div>
+                        </div>
+                      );
+                   })}
+                </div>
+             </div>
+          ))}
+       </div>
     </div>
   );
 }

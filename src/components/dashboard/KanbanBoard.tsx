@@ -3,7 +3,15 @@
 import { useState, useEffect } from 'react';
 import { createBrowserSupabaseClient } from '@/lib/supabase-browser';
 import toast from 'react-hot-toast';
-import { ClipboardList, Clock, CheckCircle } from 'lucide-react';
+import { 
+  ClipboardList, 
+  Clock, 
+  ArrowRight,
+  ChevronRight,
+  ChefHat,
+  Bell,
+  CheckCircle2
+} from 'lucide-react';
 
 interface OrderItem {
   id: string;
@@ -32,7 +40,6 @@ export default function KanbanBoard({ initialOrders, tenantId }: KanbanProps) {
   const supabase = createBrowserSupabaseClient();
 
   useEffect(() => {
-    // 1. Subscribe to Postgres changes for this specific tenant's orders (If enabled)
     const channel = supabase
       .channel('orders-' + tenantId)
       .on('postgres_changes', {
@@ -48,7 +55,6 @@ export default function KanbanBoard({ initialOrders, tenantId }: KanbanProps) {
       })
       .subscribe();
 
-    // 2. Fallback Long-Polling (Every 5s)
     const pollInterval = setInterval(() => {
        fetchFreshOrders(false);
     }, 5000);
@@ -58,10 +64,19 @@ export default function KanbanBoard({ initialOrders, tenantId }: KanbanProps) {
            const res = await fetch('/api/orders?date=today');
            const freshData = await res.json();
            
-           // Check if we have new orders to alert
            if (showToast) {
               const newOrdersCount = freshData.length - orders.length;
-              if (newOrdersCount > 0) toast('🔔 New Order received!', { icon: '🍽️', duration: 4000});
+              if (newOrdersCount > 0) {
+                toast.success('New Order received!', {
+                  icon: '🔔',
+                  style: {
+                    borderRadius: '12px',
+                    background: '#0F172A',
+                    color: '#fff',
+                    fontWeight: 'bold'
+                  },
+                });
+              }
            }
 
            setOrders(freshData.map((o:any) => ({
@@ -79,8 +94,6 @@ export default function KanbanBoard({ initialOrders, tenantId }: KanbanProps) {
 
   const updateStatus = async (orderId: string, newStatus: string) => {
     const previousOrders = [...orders];
-    
-    // Optimistic UI mapping
     setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: newStatus } : o));
 
     try {
@@ -90,96 +103,136 @@ export default function KanbanBoard({ initialOrders, tenantId }: KanbanProps) {
         body: JSON.stringify({ status: newStatus }),
       });
       if (!res.ok) throw new Error();
+      
+      toast.success(`Order moved to ${newStatus}`, {
+        duration: 2000,
+        position: 'bottom-right',
+      });
     } catch (e) {
-      toast.error('Failed to update order status');
-      setOrders(previousOrders); // Revert
+      toast.error('Failed to update status');
+      setOrders(previousOrders);
     }
   };
 
   const getElapsedTime = (placedAtStr: string) => {
     const elapsedMs = new Date().getTime() - new Date(placedAtStr).getTime();
     const minutes = Math.floor(elapsedMs / 60000);
-    return `${minutes} min ago`;
+    return `${minutes}m`;
   };
 
   const activeOrdersLength = orders.filter(o => ['new', 'preparing', 'ready'].includes(o.status)).length;
 
   if (activeOrdersLength === 0) {
     return (
-      <div className="h-full flex flex-col items-center justify-center border-2 border-dashed border-gray-200 rounded-lg bg-gray-50 bg-opacity-50">
-         <ClipboardList size={64} className="text-gray-300 mb-4" />
-         <h3 className="text-lg font-medium text-gray-900">No active orders</h3>
-         <p className="text-sm text-gray-500 mt-1">Waiting for customers to place an order...</p>
+      <div className="h-[60vh] flex flex-col items-center justify-center bg-white rounded-[32px] border border-slate-100 shadow-sm">
+         <div className="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center mb-6">
+            <ClipboardList size={32} className="text-slate-300" />
+         </div>
+         <h3 className="text-xl font-bold text-slate-900">All caught up!</h3>
+         <p className="text-slate-500 mt-2 text-center max-w-xs">
+           No active orders at the moment. New orders will appear here automatically.
+         </p>
       </div>
     );
   }
 
-  const Column = ({ title, status, colorClass, nextLabel, nextStatus }: { title: string, status: string, colorClass: string, nextLabel: string, nextStatus: string }) => {
+  const Column = ({ title, status, icon: Icon, color, accentColor, nextLabel, nextStatus }: any) => {
     const columnOrders = orders.filter(o => o.status === status);
     
     return (
-      <div className="flex-1 min-w-[300px] bg-gray-100 rounded-lg p-4 flex flex-col max-h-full">
-        <div className="flex items-center justify-between mb-4 px-1">
-          <h2 className="font-semibold text-gray-800 flex items-center">
-            {title}
-            <span className={`ml-2 px-2 py-0.5 text-xs font-bold rounded-full text-white ${colorClass}`}>
-              {columnOrders.length}
-            </span>
-          </h2>
+      <div className="flex-1 min-w-[340px] flex flex-col h-full">
+        <div className="flex items-center justify-between mb-6 px-2">
+          <div className="flex items-center space-x-3">
+             <div className={`p-2 rounded-xl ${accentColor} ${color}`}>
+                <Icon size={18} />
+             </div>
+             <h2 className="font-bold text-slate-900 tracking-tight text-lg">
+               {title}
+             </h2>
+             <span className="bg-slate-100 text-slate-500 text-[10px] font-black px-2 py-0.5 rounded-full">
+               {columnOrders.length}
+             </span>
+          </div>
         </div>
         
-        <div className="flex-1 overflow-y-auto space-y-4 pr-1">
-           {columnOrders.map((order) => {
-             return (
-               <div key={order.id} className="bg-white p-4 rounded-lg shadow-sm border border-gray-200 hover:shadow-md transition-shadow relative overflow-hidden group">
-                  <div className={`absolute top-0 left-0 w-1.5 h-full ${colorClass}`}></div>
-                
-                <div className="flex justify-between items-start mb-3 ml-2">
-                   <div className="bg-gray-100 text-gray-800 px-3 py-1 rounded-md font-bold text-lg">
-                      T{order.tableNumber}
-                   </div>
-                   <div className="text-right">
-                      <div className="font-bold text-gray-900">₹{order.totalAmount.toFixed(2)}</div>
-                      <div className="flex items-center text-xs text-gray-500 mt-1">
-                         <Clock size={12} className="mr-1" />
-                         {getElapsedTime(order.placedAt)}
+        <div className="flex-1 overflow-y-auto space-y-4 px-2 pb-6 scrollbar-hide">
+           {columnOrders.map((order) => (
+             <div key={order.id} className="bg-white p-6 rounded-[24px] shadow-sm border border-slate-100 hover:shadow-xl hover:border-brand/20 transition-all duration-300 group">
+                <div className="flex justify-between items-start mb-4">
+                   <div className="flex items-center space-x-3">
+                      <div className="bg-slate-900 text-white w-12 h-12 rounded-2xl flex items-center justify-center font-black text-xl shadow-lg shadow-slate-900/10">
+                         {order.tableNumber}
+                      </div>
+                      <div>
+                        <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">TABLE</p>
+                        <div className="flex items-center space-x-2">
+                           <Clock size={12} className="text-slate-400" />
+                           <span className="text-sm font-bold text-slate-600">{getElapsedTime(order.placedAt)}</span>
+                        </div>
                       </div>
                    </div>
+                   <div className="text-right">
+                      <div className="text-lg font-black text-slate-900 tracking-tight">₹{order.totalAmount.toFixed(0)}</div>
+                      <p className="text-[10px] text-slate-400 font-bold uppercase tracking-tighter">TOTAL</p>
+                   </div>
                 </div>
 
-                <div className="ml-2 mb-4">
-                  <ul className="text-sm text-gray-600 space-y-1">
-                    {order.orderItems?.map(item => (
-                      <li key={item.id} className="flex justify-between">
-                         <span className="truncate pr-2">
-                           <span className="font-medium text-gray-900">{item.quantity}x</span> {item.name}
-                         </span>
-                      </li>
-                    ))}
-                  </ul>
+                <div className="space-y-3 mb-6">
+                   {order.orderItems?.map(item => (
+                     <div key={item.id} className="flex items-center justify-between bg-slate-50/50 p-2.5 rounded-xl border border-slate-100/50">
+                        <div className="flex items-center space-x-2 overflow-hidden">
+                           <span className="flex-shrink-0 w-6 h-6 rounded-lg bg-white border border-slate-200 flex items-center justify-center text-xs font-black text-slate-900">
+                             {item.quantity}
+                           </span>
+                           <span className="text-sm font-bold text-slate-700 truncate">{item.name}</span>
+                        </div>
+                     </div>
+                   ))}
                 </div>
 
-                <div className="ml-2 mt-auto pt-3 border-t border-gray-100">
-                  <button
-                    onClick={() => updateStatus(order.id, nextStatus)}
-                    className={`w-full py-2 px-4 rounded-md text-sm font-medium text-white transition-colors ${colorClass.replace('bg-', 'bg-').replace('text-', 'text-')}`}
-                  >
-                    {nextLabel}
-                  </button>
-                </div>
+                <button
+                  onClick={() => updateStatus(order.id, nextStatus)}
+                  className={`w-full group/btn flex items-center justify-center space-x-2 py-3.5 px-6 rounded-2xl text-sm font-black transition-all duration-300 ${color} ${accentColor} shadow-lg shadow-current/5 hover:-translate-y-0.5 active:translate-y-0`}
+                >
+                  <span>{nextLabel}</span>
+                  <ChevronRight size={16} className="group-hover/btn:translate-x-1 transition-transform" />
+                </button>
              </div>
-             );
-           })}
+           ))}
         </div>
       </div>
     );
   };
 
   return (
-    <div className="flex gap-6 h-full overflow-x-auto pb-4">
-      <Column title="New Orders" status="new" colorClass="bg-orange-500" nextLabel="Start Preparing" nextStatus="preparing" />
-      <Column title="Preparing" status="preparing" colorClass="bg-amber-500" nextLabel="Mark Ready" nextStatus="ready" />
-      <Column title="Ready" status="ready" colorClass="bg-green-500" nextLabel="Mark Served" nextStatus="served" />
+    <div className="flex gap-8 h-full overflow-x-auto pb-4 scrollbar-hide">
+      <Column 
+        title="Incoming" 
+        status="new" 
+        icon={Bell} 
+        color="text-orange-600" 
+        accentColor="bg-orange-50"
+        nextLabel="Start Preparing" 
+        nextStatus="preparing" 
+      />
+      <Column 
+        title="Preparing" 
+        status="preparing" 
+        icon={ChefHat} 
+        color="text-blue-600" 
+        accentColor="bg-blue-50"
+        nextLabel="Mark Ready" 
+        nextStatus="ready" 
+      />
+      <Column 
+        title="Ready to Serve" 
+        status="ready" 
+        icon={CheckCircle2} 
+        color="text-emerald-600" 
+        accentColor="bg-emerald-50"
+        nextLabel="Confirm Served" 
+        nextStatus="served" 
+      />
     </div>
   );
 }

@@ -48,11 +48,7 @@ export async function POST(req: Request) {
         tenantId: tenant.id,
         tableId: table.id,
         tableNumber: table.tableNumber,
-        status: 'new', // Wait, 'new' logic might pop up on kanban before paid. Often orders only show to kitchen AFTER paid.
-        // I will set it to 'payment_pending' and switch to 'new' when webhook/success hits.
-        // Actually the schema has 'new', 'preparing', 'ready', 'served'.
-        // So I'll set it to 'new', but kanban filter might show unpaid. Let Kanban filter on paymentStatus == 'paid' in production. I updated Kanpur to require that earlier implicitly by filtering. Wait, I'll filter Kanban server side to `paymentStatus: 'paid'`. Ah I didn't in `api/orders`.
-        // To keep it simple, I'll just save it as new and payment pending.
+        status: 'new',
         paymentStatus: 'pending',
         subtotal,
         taxAmount,
@@ -61,8 +57,14 @@ export async function POST(req: Request) {
         notes,
         orderItems: {
           create: orderItemsData
-        }
+        },
       }
+    });
+
+    // Mark table as occupied
+    await prisma.cafeTable.update({
+      where: { id: table.id },
+      data: { isOccupied: true }
     });
 
     return NextResponse.json({ orderId: order.id });
